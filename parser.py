@@ -15,6 +15,12 @@ MONTH_MAP = {
     "september": "09", "october": "10", "november": "11", "december": "12"
 }
 
+# Operator home country and canonical name overrides for known cross-border operators
+OPERATOR_HOME_COUNTRIES = {
+    "37X0000000002964": ("DE", "SEFE Storage"),
+    "21X000000001127H": ("DE", "Uniper Energy Storage"),
+}
+
 
 def to_float(val: Any) -> Optional[float]:
     """Converts string/numeric representation to float or None."""
@@ -166,12 +172,21 @@ def parse_live_api(api_json: Dict[str, Any]) -> Dict[str, List[Dict[str, Any]]]:
                 op_code = clean_str(comp_node.get("code")) or clean_str(comp_node.get("url")) or clean_str(comp_node.get("name"))
                 op_name = clean_str(comp_node.get("name"))
 
+                # Resolve home country and canonical name for known cross-border operators
+                op_country_override = OPERATOR_HOME_COUNTRIES.get(op_code)
+                if op_country_override:
+                    op_ctry, canonical_name = op_country_override
+                    if canonical_name:
+                        op_name = canonical_name
+                else:
+                    op_ctry = ctry_code
+
                 if op_code not in seen_operators:
                     seen_operators.add(op_code)
                     result["operators"].append({
                         "code": op_code,
                         "name": op_name,
-                        "country_code": ctry_code,
+                        "country_code": op_ctry,
                         "publication_link": clean_str(comp_node.get("publication_link")),
                         "transparency_template": clean_str(comp_node.get("transparency_template"))
                     })
@@ -404,12 +419,20 @@ def parse_html_file(file_path: str) -> Dict[str, List[Dict[str, Any]]]:
             op_code = code or re.sub(r'[^a-zA-Z0-9]', '', name)[:32]
             current_operator = op_code
             ctry_code = extracted_country or current_country or "UNKNOWN"
+            op_country_override = OPERATOR_HOME_COUNTRIES.get(op_code)
+            if op_country_override:
+                op_ctry, canonical_name = op_country_override
+                if canonical_name:
+                    name = canonical_name
+            else:
+                op_ctry = ctry_code
+
             if op_code not in seen_operators:
                 seen_operators.add(op_code)
                 result["operators"].append({
                     "code": op_code,
                     "name": name,
-                    "country_code": ctry_code,
+                    "country_code": op_ctry,
                     "publication_link": None,
                     "transparency_template": None
                 })
